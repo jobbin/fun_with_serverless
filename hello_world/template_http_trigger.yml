@@ -1,0 +1,31 @@
+ROSTemplateFormatVersion: '2015-09-01'
+Transform: 'Aliyun::Serverless-2018-04-03'
+Resources:
+  fun-with-serverless: # Your log project name, it should be unique name.
+    Type: 'Aliyun::Serverless::Log'
+    Properties:
+      Description: 'fun log project.'
+    fun-log-store: # Your log store name
+      Type: 'Aliyun::Serverless::Log::Logstore'
+      Properties:
+        TTL: 10
+        ShardCount: 1
+  fun_with_serverless: # Your function compute service,       
+    Type: 'Aliyun::Serverless::Service'
+    Properties:
+      Description: 'fun project'
+      LogConfig:
+        Project: qiu-fun-with-serverless # Log project which FC use.
+        Logstore: fun-log-store # Log store which FC use
+    hello_world: # Your function compute function
+      Type: 'Aliyun::Serverless::Function'
+      Properties:
+        Handler: index.handler
+        Runtime: python3
+        CodeUri: 'index.py'
+      Events:
+        http-trigger: # trigger name
+          Type: HTTP
+          Properties:
+            AuthType: ANONYMOUS
+            Methods: ['GET']
