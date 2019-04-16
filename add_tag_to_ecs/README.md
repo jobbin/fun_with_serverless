@@ -44,7 +44,8 @@ Alibaba Cloud利用に限るが、下記自動的にECSインスタンスにTag�
 - ログはActionTrail専用のOSS Bucketに保存するようにActionTrailを有効化
 - fun を利用するために、AliCloudの OpenAPI Explorer の [Onlie Linux Shell](https://api.alibabacloud.com/#/cli) の操作画面にたどり着く
     - ローカル環境の場合は [公式な手順](https://github.com/aliyun/fun/blob/master/docs/usage/installation.md) を参考に、fun をインストール
-- RAM UserのAccessKey, SecretKeyを利用して、funを実行するためのコンフィグを設定
+- OpenAPI Explorer の [Onlie Linux Shell](https://api.alibabacloud.com/#/cli) 上 fun を利用する場合、funのconfigを設定する必要がない  
+ローカル環境での場合はRAM UserのAccessKey, SecretKeyを利用して、下記のようにfunのconfigを設定
 
 ```
 $ fun config
@@ -64,7 +65,7 @@ git clone https://github.com/jobbin/fun_with_serverless.git
 
 - add_tag_to_ecsのディレクトリ配下に移動
 ```
-cd add_tag_to_ecs
+cd fun_with_serverless/add_tag_to_ecs
 ```
 - Function Compute に下記のものをデプロイする
     - Log Service
