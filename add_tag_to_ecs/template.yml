@@ -31,3 +31,15 @@ Resources:
           'ACCESS_KEY_ID': '<Your Access Key Id>' #  [ Warning! ] Do not push your key info to Github
           'ACCESS_KEY_SECRET': '<Your Secret Key>' # [ Warning! ] Do not push your key info to Github
           'TAG_NAME': 'Owner'
+      # Events:
+      #   OSS: # trigger name
+      #     Type: OSS # trigger type
+      #     Properties:
+      #       bucketName: <Your OSS bucket for action trail log>
+      #       events:
+      #         - oss:ObjectCreated:PutObject
+      #         - oss:ObjectCreated:PostObject
+      #       filter:
+      #         key:
+      #           prefix: AliyunLogs/
+      #           suffix: .zip
