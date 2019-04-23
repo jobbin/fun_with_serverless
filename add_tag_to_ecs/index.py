@@ -64,7 +64,8 @@ def handler(event, context):
       EcsRegion = actionTrailLog["acsRegion"]
 
     else:
-      logger.info("Isn't RunInstances event !")
+      logger.info("Isn't target event !")
+      return 0
 
   #ECS instanceにOwnerタグを追加
   client = AcsClient(ACCESS_KEY_ID, ACCESS_KEY_SECRET, EcsRegion)
