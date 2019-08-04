@@ -24,8 +24,6 @@ Alibaba Cloud利用に限るが、下記自動的にECSインスタンスにTag�
 - RAM
     - Role
         - Function Compute実行時、ログをLog Serviceに保存する際に必要
-    - AccessKey
-        - Function ComputeがECSインスタンスにTagをつける際に必要 
 - Function Compute
     - OSSからActionTrailログのEvent情報を受信し、その情報を利用して、ECSインスタンスにTagをつける
 - ECS
@@ -74,8 +72,6 @@ cd fun_with_serverless/add_tag_to_ecs
 ```
 fun deploy
 ```
-
-- Function Compute の function(add_tag_to_ecs) の管理画面を開き、環境変数のACCESS_KEY_ID と ACCESS_KEY_SECRET を設定する
 
 - function(add_tag_to_ecs) に 下記のように OSS Trigger を設定する
     - Trigger Type: OSS

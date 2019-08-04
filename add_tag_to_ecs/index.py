@@ -7,14 +7,16 @@ from aliyunsdkcore.client import AcsClient
 from aliyunsdkcore.acs_exception.exceptions import ClientException
 from aliyunsdkcore.acs_exception.exceptions import ServerException
 from aliyunsdkecs.request.v20140526 import AddTagsRequest
+from aliyunsdkcore.auth.credentials import StsTokenCredential
 
 
 def handler(event, context):
   logger = logging.getLogger()
   logger.info('initializing')
 
-  ACCESS_KEY_ID = os.environ['ACCESS_KEY_ID']
-  ACCESS_KEY_SECRET = os.environ['ACCESS_KEY_SECRET']
+  ACCESS_KEY_ID = context.credentials.accessKeyId
+  ACCESS_KEY_SECRET = context.credentials.accessKeySecret
+  ACCESS_KEY_TOKEN = context.credentials.securityToken
 
   #OSS関連初期設定
   Event = json.loads(event.decode('utf-8').replace("'", '"'))
@@ -26,18 +28,17 @@ def handler(event, context):
   # ECS関連初期設定
   InstanceIdSet = []
   UserName = ""
-  Region = ""
   TagName = os.environ['TAG_NAME']
 
   # OSS
-  auth = oss2.Auth(ACCESS_KEY_ID, ACCESS_KEY_SECRET)
+  auth = oss2.StsAuth(ACCESS_KEY_ID, ACCESS_KEY_SECRET,ACCESS_KEY_TOKEN)
   bucket = oss2.Bucket(auth, OssEndPoint, BuketName)
 
   tmpdir = '/tmp/download/'
   os.system("rm -rf /tmp/*")
   os.mkdir(tmpdir)
 
-  #対象ActionTrailログをOSSからダウンロード
+  # 対象ActionTrailログをOSSからダウンロード
   bucket.get_object_to_file(ObjectName , tmpdir + 'trail_log.gz')
   os.system("gunzip /tmp/download/trail_log.gz")
 
@@ -59,7 +60,7 @@ def handler(event, context):
       if actionTrailLog["eventName"] == "CreateInstance" :
         InstanceIdSet.append(actionTrailLog["responseElements"]["InstanceId"])
 
-      #logger.info(InstanceIdSet)
+      # logger.info(InstanceIdSet)
       UserName = actionTrailLog["userIdentity"]["userName"]
       EcsRegion = actionTrailLog["acsRegion"]
 
@@ -67,8 +68,9 @@ def handler(event, context):
       logger.info("Isn't target event !")
       return 0
 
-  #ECS instanceにOwnerタグを追加
-  client = AcsClient(ACCESS_KEY_ID, ACCESS_KEY_SECRET, EcsRegion)
+  # ECS instanceにOwnerタグを追加
+  sts = StsTokenCredential(ACCESS_KEY_ID, ACCESS_KEY_SECRET, ACCESS_KEY_TOKEN)
+  client = AcsClient(region_id=EcsRegion, credential=sts)
 
 
   for instance in InstanceIdSet :
