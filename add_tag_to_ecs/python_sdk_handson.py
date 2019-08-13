@@ -1,26 +1,13 @@
-
-# pip install aliyun-python-sdk-core, oss2, aliyun-python-sdk-actiontrail, aliyun-python-sdk-ram
-# pip install aliyun-python-sdk-sts, aliyun-fc2, aliyun-python-sdk-vpc, aliyun-python-sdk-ecs
+# pip install aliyun-python-sdk-core oss2 aliyun-python-sdk-actiontrail aliyun-python-sdk-ram
+# pip install aliyun-python-sdk-sts aliyun-fc2 aliyun-python-sdk-vpc aliyun-python-sdk-ecs
 
 # coding=utf-8
-import time
-import oss2
-import json
-import fc2
-from aliyunsdkcore.client import AcsClient
-from aliyunsdksts.request.v20150401.GetCallerIdentityRequest import GetCallerIdentityRequest
-from aliyunsdkram.request.v20150501.CreateRoleRequest import CreateRoleRequest
-from aliyunsdkram.request.v20150501.GetRoleRequest import GetRoleRequest
-from aliyunsdkram.request.v20150501.AttachPolicyToRoleRequest import AttachPolicyToRoleRequest
-from aliyunsdkactiontrail.request.v20171204.CreateTrailRequest import CreateTrailRequest
-from aliyunsdkactiontrail.request.v20171204.StartLoggingRequest import StartLoggingRequest
-from aliyunsdkactiontrail.request.v20171204.DescribeTrailsRequest import DescribeTrailsRequest
-from aliyunsdkram.request.v20150501.ListPoliciesForRoleRequest import ListPoliciesForRoleRequest
-
 
 #########################################
 # APIコールのClientの作成
 #########################################
+from aliyunsdkcore.client import AcsClient
+
 REGION = "ap-northeast-1"
 ACCESS_KEY_ID = "< Your Access Key ID >"
 ACCESS_KEY_SECRET = "< Your Secret Key >"
@@ -30,6 +17,9 @@ client = AcsClient(ACCESS_KEY_ID, ACCESS_KEY_SECRET, REGION)
 #########################################
 # AccountIDの取得
 #########################################
+import json
+from aliyunsdksts.request.v20150401.GetCallerIdentityRequest import GetCallerIdentityRequest
+
 request = GetCallerIdentityRequest()
 request.set_accept_format('json')
 response = json.loads(client.do_action_with_exception(request))
@@ -43,6 +33,8 @@ print("AccountId = " , ACCOUNT_ID)
 # OSS
 # 　ActionTrail用のOSS Bucketの作成
 #########################################
+import oss2
+
 OSS_BUCKET = "action-trail-log" + "-" +  ACCOUNT_ID
 OSS_ENDPOINT = "oss-ap-northeast-1.aliyuncs.com"
 
@@ -61,6 +53,10 @@ print('creation date: ' + bucket_info.creation_date)
 # RAM Role
 # 　ActionTrail用のRAM Roleの作成、信頼関係の付与、RAM Policyの付与
 ###############################################################
+from aliyunsdkram.request.v20150501.CreateRoleRequest import CreateRoleRequest
+from aliyunsdkram.request.v20150501.GetRoleRequest import GetRoleRequest
+from aliyunsdkram.request.v20150501.AttachPolicyToRoleRequest import AttachPolicyToRoleRequest
+from aliyunsdkram.request.v20150501.ListPoliciesForRoleRequest import ListPoliciesForRoleRequest
 
 # 変数の準備
 ACTION_TRAIL_ROLE　= "AliyunActionTrailDefaultRole"
@@ -78,7 +74,23 @@ print(json.dumps(response, indent=4, sort_keys=True))
 request = CreateRoleRequest()
 request.set_accept_format('json')
 request.set_RoleName(ACTION_TRAIL_ROLE)
-request.set_AssumeRolePolicyDocument("{\"Statement\":[{\"Action\": \"sts:AssumeRole\",\"Effect\": \"Allow\",\"Principal\": {\"Service\": [\"actiontrail.aliyuncs.com\"]}}],\"Version\": \"1\"}")
+ASSUME_ROLE_POLICY_DOCUMENT = '''
+{
+  "Statement": [
+    {
+      "Action": "sts:AssumeRole",
+      "Effect": "Allow",
+      "Principal": {
+        "Service": [
+          "actiontrail.aliyuncs.com"
+        ]
+      }
+    }
+  ],
+  "Version": "1"
+}
+'''
+request.set_AssumeRolePolicyDocument(ASSUME_ROLE_POLICY_DOCUMENT)
 
 response = json.loads(client.do_action_with_exception(request))
 print(json.dumps(response["Role"], indent=4, sort_keys=True))
@@ -103,9 +115,69 @@ print(json.dumps(response, indent=4, sort_keys=True))
 
 
 ###############################################################
+# RAM Role
+# 　Function Compute用のRAM Roleの作成、信頼関係の付与、RAM Policyの付与
+###############################################################
+# 変数の準備
+FC_ROLE = "fc-role"
+
+# Roleの作成、信頼関係の付与
+request = CreateRoleRequest()
+request.set_accept_format('json')
+request.set_RoleName(FC_ROLE)
+ASSUME_ROLE_POLICY_DOCUMENT = '''
+{
+  "Statement": [
+    {
+      "Action": "sts:AssumeRole",
+      "Effect": "Allow",
+      "Principal": {
+        "Service": [
+          "fc.aliyuncs.com"
+        ]
+      }
+    }
+  ],
+  "Version": "1"
+}
+'''
+request.set_AssumeRolePolicyDocument(ASSUME_ROLE_POLICY_DOCUMENT)
+
+response = json.loads(client.do_action_with_exception(request))
+print(json.dumps(response["Role"], indent=4, sort_keys=True))
+
+# 作成したRoleにPolicy(AliyunOSSFullAccess)の付与
+request = AttachPolicyToRoleRequest()
+request.set_accept_format('json')
+request.set_PolicyType("System")
+request.set_PolicyName("AliyunOSSFullAccess")
+request.set_RoleName(FC_ROLE)
+
+response = client.do_action_with_exception(request)
+print(str(response, encoding='utf-8'))
+
+# 作成したRoleにPolicy(AliyunECSFullAccess)の付与
+request.set_PolicyName("AliyunECSFullAccess")
+
+response = client.do_action_with_exception(request)
+print(str(response, encoding='utf-8'))
+
+# 指定したRoleにPolicyを付与したかの確認
+request = ListPoliciesForRoleRequest()
+request.set_accept_format('json')
+request.set_RoleName("AliyunActionTrailDefaultRole")
+
+response = json.loads(client.do_action_with_exception(request))
+print(json.dumps(response, indent=4, sort_keys=True))
+
+
+###############################################################
 # ActionTrail
 # 　ActionTrailの作成、OSS Bucketの設定、ActionTraioの有効化
 ###############################################################
+from aliyunsdkactiontrail.request.v20171204.CreateTrailRequest import CreateTrailRequest
+from aliyunsdkactiontrail.request.v20171204.StartLoggingRequest import StartLoggingRequest
+from aliyunsdkactiontrail.request.v20171204.DescribeTrailsRequest import DescribeTrailsRequest
 
 # 変数の準備
 ACTION_TRAIL = "audit-trail" # Your ActionTrail
@@ -152,51 +224,10 @@ print(json.dumps(response["TrailList"][0], indent=4, sort_keys=True))
 
 
 ###############################################################
-# RAM Role
-# 　Function Compute用のRAM Roleの作成、信頼関係の付与、RAM Policyの付与
-###############################################################
-
-# 変数の準備
-FC_ROLE = "fc-role"
-
-# Roleの作成、信頼関係の付与
-request = CreateRoleRequest()
-request.set_accept_format('json')
-request.set_RoleName(FC_ROLE)
-request.set_AssumeRolePolicyDocument("{\"Statement\":[{\"Action\": \"sts:AssumeRole\",\"Effect\": \"Allow\",\"Principal\": {\"Service\": [\"fc.aliyuncs.com\"]}}],\"Version\": \"1\"}")
-
-response = json.loads(client.do_action_with_exception(request))
-print(json.dumps(response["Role"], indent=4, sort_keys=True))
-
-# 作成したRoleにPolicy(AliyunOSSFullAccess)の付与
-request = AttachPolicyToRoleRequest()
-request.set_accept_format('json')
-request.set_PolicyType("System")
-request.set_PolicyName("AliyunOSSFullAccess")
-request.set_RoleName(FC_ROLE)
-
-response = client.do_action_with_exception(request)
-print(str(response, encoding='utf-8'))
-
-# 作成したRoleにPolicy(AliyunECSFullAccess)の付与
-request.set_PolicyName("AliyunECSFullAccess")
-
-response = client.do_action_with_exception(request)
-print(str(response, encoding='utf-8'))
-
-# 指定したRoleにPolicyを付与したかの確認
-request = ListPoliciesForRoleRequest()
-request.set_accept_format('json')
-request.set_RoleName("AliyunActionTrailDefaultRole")
-
-response = json.loads(client.do_action_with_exception(request))
-print(json.dumps(response, indent=4, sort_keys=True))
-
-
-###############################################################
 # Function Compute
 # 　Serviceの作成、Functionの作成、OSS Triggerの作成
 ###############################################################
+import fc2
 
 # 変数の準備
 FC_ENDPOINT = "https://" + ACCOUNT_ID + "." + REGION + ".fc.aliyuncs.com" # Function Compute Endpoint
@@ -231,6 +262,8 @@ response = fc_client.create_function(
 print(json.dumps(response.data, indent=4, sort_keys=True))
 
 # OSS Triggerの作成
+# Tiggerのサンプル: https://github.com/jobbin/fun_with_serverless/blob/master/add_tag_to_ecs/oss_trigger_info.json
+
 OSS_TRIGGER = "oss-trigger"
 OSS_TRIGGER_CONFIG = {"events": ["oss:ObjectCreated:PutObject"]}
 OSS_SOURCE_ARN = "acs:oss:ap-northeast-1:" + ACCOUNT_ID + ":" + OSS_BUCKET
@@ -277,6 +310,7 @@ from aliyunsdkvpc.request.v20160428.CreateVpcRequest import CreateVpcRequest
 
 request = CreateVpcRequest()
 request.set_accept_format('json')
+request.set_CidrBlock("172.16.0.0/12")
 response = json.loads(client.do_action_with_exception(request))
 
 # 確認
@@ -487,6 +521,7 @@ request.set_RoleName(FC_ROLE)
 response = client.do_action_with_exception(request)
 print(str(response, encoding='utf-8'))
 
+
 ###############################################################
 # ActionTrail
 #   Trailの削除
@@ -494,6 +529,7 @@ print(str(response, encoding='utf-8'))
 # RAM Role
 #   RoleのPolicyのDetach, Role削除
 ###############################################################
+
 # ActionTrailの削除
 from aliyunsdkactiontrail.request.v20171204.DeleteTrailRequest import DeleteTrailRequest
 
@@ -521,6 +557,7 @@ request.set_RoleName(ACTION_TRAIL_ROLE)
 
 response = client.do_action_with_exception(request)
 print(str(response, encoding='utf-8'))
+
 
 ###############################################################
 # OSS

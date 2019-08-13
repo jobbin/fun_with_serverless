@@ -10,7 +10,7 @@ Alibaba Cloud利用に限るが、下記自動的にECSインスタンスにTag�
 
 # アーキテクチャ
 
-![architecture](addTag2Ecs.jpg)
+![architecture](add_tag_to_ecs.png)
 
 ## 本仕組みに利用されるAliCloud Product / Tool
 
