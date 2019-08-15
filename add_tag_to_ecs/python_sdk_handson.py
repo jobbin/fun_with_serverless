@@ -59,7 +59,7 @@ from aliyunsdkram.request.v20150501.AttachPolicyToRoleRequest import AttachPolic
 from aliyunsdkram.request.v20150501.ListPoliciesForRoleRequest import ListPoliciesForRoleRequest
 
 # 変数の準備
-ACTION_TRAIL_ROLE　= "AliyunActionTrailDefaultRole"
+ACTION_TRAIL_ROLE = "AliyunActionTrailDefaultRole"
 
 # 指定したRoleの存在確認、存在しない場合はエラー表示
 # 想定結果: Error:EntityNotExist.Role
@@ -99,7 +99,7 @@ print(json.dumps(response["Role"], indent=4, sort_keys=True))
 request = AttachPolicyToRoleRequest()
 request.set_accept_format('json')
 request.set_PolicyType("System")
-request.set_PolicyName("AliyunOSSFullAccess")
+request.set_PolicyName("AliyunActionTrailRolePolicy")
 request.set_RoleName(ACTION_TRAIL_ROLE)
 
 response = client.do_action_with_exception(request)
@@ -108,7 +108,7 @@ print(str(response, encoding='utf-8'))
 # 指定したRoleにPolicyを付与したかの確認
 request = ListPoliciesForRoleRequest()
 request.set_accept_format('json')
-request.set_RoleName("AliyunActionTrailDefaultRole")
+request.set_RoleName(ACTION_TRAIL_ROLE)
 
 response = json.loads(client.do_action_with_exception(request))
 print(json.dumps(response, indent=4, sort_keys=True))
@@ -166,6 +166,58 @@ print(str(response, encoding='utf-8'))
 request = ListPoliciesForRoleRequest()
 request.set_accept_format('json')
 request.set_RoleName("AliyunActionTrailDefaultRole")
+
+response = json.loads(client.do_action_with_exception(request))
+print(json.dumps(response, indent=4, sort_keys=True))
+
+###############################################################
+# OSS Trigger Role
+# 　OSS Trigger用のRAM Roleの作成、信頼関係の付与、RAM Policyの付与
+###############################################################
+
+# 変数の準備
+OSS_INVOCATION_ROLE = "AliyunOSSEventNotificationRole"
+
+# Roleの作成、信頼関係の付与
+request = CreateRoleRequest()
+request.set_accept_format('json')
+request.set_RoleName(OSS_INVOCATION_ROLE)
+ASSUME_ROLE_POLICY_DOCUMENT = '''
+{
+  "Statement": [
+    {
+      "Action": "sts:AssumeRole",
+      "Effect": "Allow",
+      "Principal": {
+        "Service": [
+          "oss.aliyuncs.com"
+        ]
+      }
+    }
+  ],
+  "Version": "1"
+}
+'''
+request.set_AssumeRolePolicyDocument(ASSUME_ROLE_POLICY_DOCUMENT)
+
+response = json.loads(client.do_action_with_exception(request))
+OSS_INVOCATION_ROLE_ARN = response["Role"]["Arn"]
+print("OSS_INVOCATION_ROLE_ARN : ", OSS_INVOCATION_ROLE_ARN)
+
+# 作成したRoleにPolicy(AliyunOSSEventNotificationRolePolicy)の付与
+request = AttachPolicyToRoleRequest()
+request.set_accept_format('json')
+request.set_PolicyType("System")
+request.set_PolicyName("AliyunOSSEventNotificationRolePolicy")
+request.set_RoleName(OSS_INVOCATION_ROLE)
+
+response = client.do_action_with_exception(request)
+print(str(response, encoding='utf-8'))
+
+# 指定したRoleにPolicyを付与したかの確認
+request = ListPoliciesForRoleRequest()
+request.set_accept_format('json')
+request.set_RoleName(OSS_INVOCATION_ROLE)
 
 response = json.loads(client.do_action_with_exception(request))
 print(json.dumps(response, indent=4, sort_keys=True))
@@ -268,7 +320,6 @@ OSS_TRIGGER = "oss-trigger"
 OSS_TRIGGER_CONFIG = {"events": ["oss:ObjectCreated:PutObject"]}
 OSS_SOURCE_ARN = "acs:oss:ap-northeast-1:" + ACCOUNT_ID + ":" + OSS_BUCKET
 TRIGGER_TYPE = "oss"
-INVOCATION_ROLE = 'acs:ram::'+ ACCOUNT_ID + ':role/aliyunosseventnotificationrole'
 
 response = fc_client.create_trigger(
                                     FC_SERVICE, 
@@ -277,7 +328,7 @@ response = fc_client.create_trigger(
                                     TRIGGER_TYPE,
                                     OSS_TRIGGER_CONFIG, 
                                     OSS_SOURCE_ARN, 
-                                    INVOCATION_ROLE
+                                    OSS_INVOCATION_ROLE_ARN
                                 )
 
 # 確認
@@ -521,6 +572,23 @@ request.set_RoleName(FC_ROLE)
 response = client.do_action_with_exception(request)
 print(str(response, encoding='utf-8'))
 
+# OSS Trigger Roleから AliyunOSSEventNotificationRolePolicy をDetach
+request = DetachPolicyFromRoleRequest()
+request.set_accept_format('json')
+request.set_PolicyType("System")
+request.set_PolicyName("AliyunOSSEventNotificationRolePolicy")
+request.set_RoleName(OSS_INVOCATION_ROLE)
+
+response = client.do_action_with_exception(request)
+print(str(response, encoding='utf-8'))
+
+# OSS Trigger Roleの削除
+request = DeleteRoleRequest()
+request.set_accept_format('json')
+request.set_RoleName(OSS_INVOCATION_ROLE)
+
+response = client.do_action_with_exception(request)
+print(str(response, encoding='utf-8'))
 
 ###############################################################
 # ActionTrail
@@ -540,11 +608,11 @@ request.set_Name(ACTION_TRAIL)
 response = client.do_action_with_exception(request)
 print(str(response, encoding='utf-8'))
 
-# [Role] AliyunActionTrailDefaultRole から AliyunOSSFullAccess をDetach
+# [Role] AliyunActionTrailDefaultRole から AliyunActionTrailRolePolicy をDetach
 request = DetachPolicyFromRoleRequest()
 request.set_accept_format('json')
 request.set_PolicyType("System")
-request.set_PolicyName("AliyunOSSFullAccess")
+request.set_PolicyName("AliyunActionTrailRolePolicy")
 request.set_RoleName(ACTION_TRAIL_ROLE)
 
 response = client.do_action_with_exception(request)
